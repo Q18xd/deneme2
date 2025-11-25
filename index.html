@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iPhone Web Oyunu</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Sayfanın kaymasını engeller */
+            background-color: #222;
+            font-family: Arial, sans-serif;
+            touch-action: none; /* Dokunma ile zoom/kaydırmayı kapatır */
+        }
+        canvas {
+            display: block;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none; /* Skora dokunmayı engeller */
+        }
+        #startText {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 20px;
+            margin-top: -10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="score">Skor: 0</div>
+<div id="startText">Başlamak için Dokun</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+    const startText = document.getElementById('startText');
+
+    // Tam ekran ayarları
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Oyun Değişkenleri
+    let gameRunning = false;
+    let score = 0;
+    let gravity = 0.6;
+    
+    // Oyuncu (Kare)
+    const player = {
+        x: 50,
+        y: canvas.height / 2,
+        width: 40,
+        height: 40,
+        dy: 0, // Dikey hız
+        jumpStrength: -10,
+        color: '#00ffcc',
+        draw: function() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        },
+        update: function() {
+            this.dy += gravity;
+            this.y += this.dy;
+
+            // Zemin kontrolü
+            if (this.y + this.height > canvas.height) {
+                gameOver();
+            }
+            // Tavan kontrolü
+            if (this.y < 0) {
+                this.y = 0;
+                this.dy = 0;
+            }
+        }
+    };
+
+    // Engeller
+    const obstacles = [];
+    const obstacleWidth = 50;
+    let frameCount = 0;
+    let obstacleSpeed = 5;
+
+    class Obstacle {
+        constructor() {
+            this.x = canvas.width;
+            // Rastgele yükseklikte engel (Alttan çıkan)
+            this.height = Math.random() * (canvas.height / 2) + 50; 
+            this.y = canvas.height - this.height;
+            this.passed = false;
+        }
+        draw() {
+            ctx.fillStyle = '#ff4444';
+            ctx.fillRect(this.x, this.y, obstacleWidth, this.height);
+        }
+        update() {
+            this.x -= obstacleSpeed;
+        }
+    }
+
+    // Oyun Döngüsü
+    function gameLoop() {
+        if (!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Oyuncu işlemleri
+        player.update();
+        player.draw();
+
+        // Engel işlemleri
+        if (frameCount % 100 === 0) { // Her 100 karede bir yeni engel
+            obstacles.push(new Obstacle());
+        }
+
+        for (let i = 0; i < obstacles.length; i++) {
+            obstacles[i].update();
+            obstacles[i].draw();
+
+            // Çarpışma Kontrolü (Basit AABB çarpışması)
+            if (
+                player.x < obstacles[i].x + obstacleWidth &&
+                player.x + player.width > obstacles[i].x &&
+                player.y < obstacles[i].y + obstacles[i].height &&
+                player.y + player.height > obstacles[i].y
+            ) {
+                gameOver();
+            }
+
+            // Skor artırma
+            if (obstacles[i].x + obstacleWidth < player.x && !obstacles[i].passed) {
+                score++;
+                scoreElement.innerText = "Skor: " + score;
+                obstacles[i].passed = true;
+                // Oyun hızlandırma
+                if(score % 5 === 0) obstacleSpeed += 0.5;
+            }
+        }
+
+        // Ekrandan çıkan engelleri temizle
+        if (obstacles.length > 0 && obstacles[0].x < -obstacleWidth) {
+            obstacles.shift();
+        }
+
+        frameCount++;
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Oyunu Başlatma/Zıplama
+    function jump() {
+        if (!gameRunning) {
+            resetGame();
+            gameRunning = true;
+            startText.style.display = 'none';
+            gameLoop();
+        }
+        player.dy = player.jumpStrength;
+    }
+
+    function resetGame() {
+        player.y = canvas.height / 2;
+        player.dy = 0;
+        obstacles.length = 0;
+        score = 0;
+        scoreElement.innerText = "Skor: 0";
+        frameCount = 0;
+        obstacleSpeed = 5;
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        startText.innerText = "Oyun Bitti! Tekrar oynamak için dokun.";
+        startText.style.display = 'block';
+    }
+
+    // iPhone için Dokunma Algılama (Touch Event)
+    window.addEventListener('touchstart', function(e) {
+        e.preventDefault(); // Varsayılan dokunma davranışını engeller
+        jump();
+    }, { passive: false });
+
+    // Bilgisayar için Mouse Tıklama (Test amaçlı)
+    window.addEventListener('mousedown', jump);
+
+</script>
+</body>
+</html>
