@@ -209,8 +209,8 @@
 
 
         // --- OYNANIŞ ---
-        let isMovingRight = false;
         let isGameFinished = false;
+        let activeTouches = {}; // Aktif dokunuşları takip etmek için
 
         player.onUpdate(() => {
             if(!isGameFinished) {
@@ -219,8 +219,31 @@
                 camPos(lerp(currCam.x, targetX, 0.08), height() / 2);
             }
             
-            if (isMovingRight && !isGameFinished) {
+            // HAREKET MANTIĞI (GÜNCELLENDİ: DOKUNMATİK HASSASİYETİ)
+            // Sağ tarafta herhangi bir parmak var mı kontrol et
+            let isRightTouch = false;
+            for (const id in activeTouches) {
+                if (activeTouches[id].x > width() / 2) {
+                    isRightTouch = true;
+                    break;
+                }
+            }
+
+            // Sağ dokunuş varsa VEYA klavyede sağa basılıyorsa hareket et
+            if ((isRightTouch || isKeyDown("right")) && !isGameFinished) {
                 player.move(350, 0);
+
+                // Yürürken efekt
+                if (time() % 0.2 < 0.1) {
+                     add([
+                        rect(4, 4),
+                        pos(player.pos.x - 10, player.pos.y - 10),
+                        color(255, 100, 100),
+                        move(LEFT, 50),
+                        lifespan(0.5),
+                        opacity(0.7)
+                     ]);
+                }
             }
 
             if (player.pos.y > height() + 100) {
@@ -250,25 +273,39 @@
             }
         }
 
+        // --- KONTROLLER (DOKUNMATİK - GÜNCELLENDİ) ---
+        
+        // Dokunma Başladığında
         onTouchStart((id, pos) => {
             if(isGameFinished) return;
-            if (pos.x > width() / 2) isMovingRight = true;
-            else jump();
+            
+            activeTouches[id] = pos; // Dokunuşu kaydet
+            
+            // Eğer ekranın soluna dokunulduysa zıpla
+            if (pos.x < width() / 2) {
+                jump();
+            }
         });
 
-        onTouchEnd((id, pos) => {
-            if (pos.x > width() / 2) isMovingRight = false;
+        // Parmak Sürüklendiğinde (Pozisyonu güncelle)
+        onTouchMove((id, pos) => {
+            if(isGameFinished) return;
+            activeTouches[id] = pos;
         });
 
-        onKeyDown("right", () => isMovingRight = true);
-        onKeyRelease("right", () => isMovingRight = false);
+        // Dokunma Bittiğinde
+        onTouchEnd((id) => {
+            delete activeTouches[id]; // Listeden sil
+        });
+
+        // Klavye Kontrolleri (Zıplama için)
         onKeyPress("space", jump);
         onKeyPress("left", jump);
+        // Not: Sağa gitme (right) onUpdate içinde isKeyDown ile kontrol ediliyor.
 
         // --- FİNAL SENARYOSU ---
         player.onCollide("boyfriend", () => {
             isGameFinished = true;
-            isMovingRight = false;
             
             camPos(boyfriend.pos.x, height()/2);
 
