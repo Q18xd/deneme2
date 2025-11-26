@@ -32,6 +32,53 @@
             80% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
             100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
+
+        /* --- YENİ KONTROL BUTONLARI --- */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+            pointer-events: none; /* Boşluklara tıklamayı engelleme */
+            z-index: 500;
+        }
+
+        .control-btn {
+            pointer-events: auto; /* Butonlara tıklanabilsin */
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid white;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        #btn-jump {
+            background-color: rgba(255, 100, 100, 0.7); /* Kırmızımsı */
+        }
+        
+        #btn-right {
+            background-color: rgba(100, 200, 100, 0.7); /* Yeşilimsi */
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            opacity: 1;
+        }
+
     </style>
 </head>
 <body>
@@ -40,6 +87,12 @@
 <!-- GitHub'a yüklerken fotoğrafının adını 'bizim_foto.jpg' yapmalısın! -->
 <div id="final-photo-container">
     <img src="bizim_foto.jpg" alt="Bizim Fotoğrafımız">
+</div>
+
+<!-- KONTROL BUTONLARI -->
+<div id="controls">
+    <div id="btn-jump" class="control-btn">ZIPLA</div>
+    <div id="btn-right" class="control-btn">İLERİ</div>
 </div>
 
 <!-- Kaboom v3000 -->
@@ -210,7 +263,7 @@
 
         // --- OYNANIŞ ---
         let isGameFinished = false;
-        let activeTouches = {}; // Aktif dokunuşları takip etmek için
+        let isRightBtnPressed = false; // Sağ butona basılıyor mu?
 
         player.onUpdate(() => {
             if(!isGameFinished) {
@@ -219,18 +272,8 @@
                 camPos(lerp(currCam.x, targetX, 0.08), height() / 2);
             }
             
-            // HAREKET MANTIĞI (GÜNCELLENDİ: DOKUNMATİK HASSASİYETİ)
-            // Sağ tarafta herhangi bir parmak var mı kontrol et
-            let isRightTouch = false;
-            for (const id in activeTouches) {
-                if (activeTouches[id].x > width() / 2) {
-                    isRightTouch = true;
-                    break;
-                }
-            }
-
-            // Sağ dokunuş varsa VEYA klavyede sağa basılıyorsa hareket et
-            if ((isRightTouch || isKeyDown("right")) && !isGameFinished) {
+            // HAREKET MANTIĞI: Buton basılıysa VEYA klavye sağ tuşu basılıysa
+            if ((isRightBtnPressed || isKeyDown("right")) && !isGameFinished) {
                 player.move(350, 0);
 
                 // Yürürken efekt
@@ -254,7 +297,6 @@
 
         player.onCollide("obstacle", () => {
             shake(10); 
-            // addKaboom(player.pos); // KABOOM YAZISI KALDIRILDI
             wait(0.5, () => go("game")); 
         });
 
@@ -273,32 +315,30 @@
             }
         }
 
-        // --- KONTROLLER (DOKUNMATİK - GÜNCELLENDİ) ---
-        
-        // Dokunma Başladığında
-        onTouchStart((id, pos) => {
-            if(isGameFinished) return;
-            
-            activeTouches[id] = pos; // Dokunuşu kaydet
-            
-            // Eğer ekranın soluna dokunulduysa zıpla
-            if (pos.x < width() / 2) {
-                jump();
-            }
-        });
+        // --- HTML BUTON KONTROLLERİ ---
+        const btnRight = document.getElementById("btn-right");
+        const btnJump = document.getElementById("btn-jump");
 
-        // Parmak Sürüklendiğinde (Pozisyonu güncelle)
-        onTouchMove((id, pos) => {
-            if(isGameFinished) return;
-            activeTouches[id] = pos;
-        });
+        // İLERİ BUTONU
+        const startRight = () => { isRightBtnPressed = true; };
+        const endRight = () => { isRightBtnPressed = false; };
 
-        // Dokunma Bittiğinde
-        onTouchEnd((id) => {
-            delete activeTouches[id]; // Listeden sil
-        });
+        btnRight.addEventListener("touchstart", (e) => { e.preventDefault(); startRight(); });
+        btnRight.addEventListener("touchend", (e) => { e.preventDefault(); endRight(); });
+        btnRight.addEventListener("mousedown", startRight); // PC testi için
+        btnRight.addEventListener("mouseup", endRight);
+        btnRight.addEventListener("mouseleave", endRight);
 
-        // Klavye Kontrolleri (Zıplama için)
+        // ZIPLA BUTONU
+        const doJump = (e) => { 
+            if(e) e.preventDefault(); 
+            jump(); 
+        };
+
+        btnJump.addEventListener("touchstart", doJump);
+        btnJump.addEventListener("mousedown", doJump); // PC testi için
+
+        // Klavye Kontrolleri (Hala aktif)
         onKeyPress("space", jump);
         onKeyPress("left", jump);
         // Not: Sağa gitme (right) onUpdate içinde isKeyDown ile kontrol ediliyor.
@@ -306,6 +346,10 @@
         // --- FİNAL SENARYOSU ---
         player.onCollide("boyfriend", () => {
             isGameFinished = true;
+            isRightBtnPressed = false; // Otomatik durdur
+            
+            // Butonları gizle
+            document.getElementById("controls").style.display = "none";
             
             camPos(boyfriend.pos.x, height()/2);
 
