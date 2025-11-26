@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <title>Edamm</title>
+    <title>edamm</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <style>
@@ -231,7 +231,7 @@
 
         player.onCollide("obstacle", () => {
             shake(10); 
-            addKaboom(player.pos); 
+            // addKaboom(player.pos); // KABOOM YAZISI KALDIRILDI
             wait(0.5, () => go("game")); 
         });
 
