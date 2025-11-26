@@ -1,202 +1,363 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPhone Web Oyunu</title>
+    <title>Beni Affet</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Sayfanın kaymasını engeller */
-            background-color: #222;
-            font-family: Arial, sans-serif;
-            touch-action: none; /* Dokunma ile zoom/kaydırmayı kapatır */
-        }
-        canvas {
-            display: block;
-        }
-        #score {
+        body { margin: 0; overflow: hidden; background-color: #FFC0CB; touch-action: none; }
+
+        /* Fotoğrafın görüneceği alan (Başlangıçta gizli) */
+        #final-photo-container {
+            display: none; /* Gizli */
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            pointer-events: none; /* Skora dokunmayı engeller */
-        }
-        #startText {
-            position: absolute;
-            top: 50%;
-            width: 100%;
+            top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
             text-align: center;
-            color: white;
-            font-size: 20px;
-            margin-top: -10px;
-            pointer-events: none;
+            animation: popIn 1s ease-out;
+        }
+
+        /* Fotoğraf ayarları */
+        #final-photo-container img {
+            max-width: 300px; /* Genişlik sınırı */
+            max-height: 300px;
+            border: 5px solid white;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 20, 147, 0.5);
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            80% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-<div id="score">Skor: 0</div>
-<div id="startText">Başlamak için Dokun</div>
-<canvas id="gameCanvas"></canvas>
+<!-- SONUÇ FOTOĞRAFI ALANI -->
+<!-- GitHub'a yüklerken fotoğrafının adını 'bizim_foto.jpg' yapmalısın! -->
+<div id="final-photo-container">
+    <img src="bizim_foto.jpg" alt="Bizim Fotoğrafımız">
+</div>
+
+<!-- Kaboom v3000 -->
+<script src="https://unpkg.com/kaboom@3000.0.1/dist/kaboom.js"></script>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreElement = document.getElementById('score');
-    const startText = document.getElementById('startText');
+    // 1. OYUNU BAŞLAT (Hemen çalışır)
+    kaboom({
+        background: [255, 192, 203], // Pembe Arkaplan
+        width: window.innerWidth,
+        height: window.innerHeight,
+        font: "Arial", 
+    });
 
-    // Tam ekran ayarları
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+    // 2. SAHNE
+    scene("game", () => {
+        
+        setGravity(2000); 
 
-    // Oyun Değişkenleri
-    let gameRunning = false;
-    let score = 0;
-    let gravity = 0.6;
-    
-    // Oyuncu (Kare)
-    const player = {
-        x: 50,
-        y: canvas.height / 2,
-        width: 40,
-        height: 40,
-        dy: 0, // Dikey hız
-        jumpStrength: -10,
-        color: '#00ffcc',
-        draw: function() {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-        },
-        update: function() {
-            this.dy += gravity;
-            this.y += this.dy;
+        const groundHeight = 80;
+        const groundY = height() - groundHeight; 
 
-            // Zemin kontrolü
-            if (this.y + this.height > canvas.height) {
-                gameOver();
+        // --- DEKORASYON: HAREKETLİ BULUTLAR ---
+        loop(2, () => {
+            const cloudY = rand(50, height() / 2);
+            const cloudScale = rand(0.5, 1.5);
+            add([
+                circle(30),
+                pos(width(), cloudY),
+                color(255, 255, 255),
+                opacity(0.6),
+                move(LEFT, rand(20, 50)), 
+                scale(cloudScale),
+                lifespan(30), 
+                "cloud"
+            ]);
+        });
+
+        // --- DEKORASYON: AĞAÇLAR (DAHA DÜZ VE SADE) ---
+        const mapWidth = 5000;
+        for(let i=200; i < mapWidth; i += rand(300, 600)) {
+            // Ağaç Gövdesi
+            add([
+                rect(20, 100), 
+                pos(i, groundY), 
+                color(100, 70, 50), 
+                anchor("bot")
+            ]);
+            // Ağaç Yaprakları (Tek parça, düz daire)
+            add([
+                circle(45), 
+                pos(i, groundY - 100), 
+                color(34, 139, 34), 
+                anchor("center")
+            ]); 
+        }
+
+        // Çiçekler (Sadeleştirildi)
+        for(let i=50; i < mapWidth; i += rand(60, 150)) {
+            add([circle(5), pos(i, groundY - 10), color(rand(200, 255), rand(100, 200), rand(150, 255)), anchor("center")]);
+            add([rect(2, 10), pos(i, groundY), color(0, 100, 0), anchor("bot")]);
+        }
+
+        // --- ZEMİN ---
+        add([
+            rect(mapWidth + 1000, groundHeight), 
+            pos(0, groundY),
+            area(),
+            body({ isStatic: true }),
+            color(60, 179, 113), 
+            anchor("topleft"),
+            "ground"
+        ]);
+
+        // --- ENGELLER (KIRIK KALP ŞEKLİ) ---
+        const obstaclePositions = [900, 1600, 2300, 3000, 3700];
+
+        for (let x of obstaclePositions) {
+            add([
+                rect(30, 30), 
+                pos(x, groundY), 
+                area({ scale: 0.8 }), 
+                anchor("bot"), 
+                opacity(0), 
+                "obstacle",
+                {
+                    draw() {
+                        const c = rgb(255, 0, 0); 
+                        const center = vec2(0, -25); 
+
+                        drawRect({
+                            width: 30, height: 30,
+                            pos: center,
+                            color: c,
+                            angle: 45,
+                            anchor: "center"
+                        });
+                        drawCircle({
+                            pos: center.sub(vec2(10, 10)),
+                            radius: 15,
+                            color: c
+                        });
+                        drawCircle({
+                            pos: center.add(vec2(10, -10)),
+                            radius: 15,
+                            color: c
+                        });
+                        
+                        const lineC = rgb(0,0,0);
+                        drawLine({ p1: center.sub(vec2(0, 20)), p2: center.sub(vec2(5, 5)), width: 3, color: lineC });
+                        drawLine({ p1: center.sub(vec2(5, 5)), p2: center.add(vec2(5, 5)), width: 3, color: lineC });
+                        drawLine({ p1: center.add(vec2(5, 5)), p2: center.add(vec2(0, 20)), width: 3, color: lineC });
+                    }
+                }
+            ]);
+        }
+
+        // --- OYUNCU (KIZ) ---
+        const player = add([
+            rect(30, 50), 
+            pos(100, groundY),
+            area(),
+            body(),
+            color(0, 0, 0),
+            opacity(0), 
+            anchor("bot"), 
+            "player"
+        ]);
+
+        // Kız Çizimi
+        player.add([circle(20), pos(0, -55), color(0, 0, 0), anchor("center")]); // Saç (Arka)
+        player.add([rect(26, 30), pos(0, -30), color(101, 67, 33), anchor("center")]); // Elbise
+        player.add([rect(34, 25), pos(0, -10), color(0, 0, 0), anchor("center")]); // Etek
+        player.add([circle(14), pos(0, -55), color(255, 224, 189), anchor("center")]); // Kafa
+        player.add([circle(2), pos(-7, -52), color(255, 182, 193), anchor("center")]); // Yanak
+        player.add([circle(2), pos(7, -52), color(255, 182, 193), anchor("center")]); // Yanak
+        player.add([rect(28, 8), pos(0, -66), color(0, 0, 0), anchor("center")]); // Kahkül
+
+        // --- ERKEK KARAKTER (GÜNCELLENDİ: SİYAH KIYAFET) ---
+        const boyX = 4200;
+        const boyfriend = add([
+            rect(30, 60),
+            pos(boyX, groundY), 
+            area(),
+            body({ isStatic: true }),
+            color(0,0,0),
+            opacity(0),
+            anchor("bot"), 
+            "boyfriend"
+        ]);
+
+        // Erkek Çizimi
+        boyfriend.add([rect(26, 45), pos(0, -25), color(0, 0, 0), anchor("center")]); // Vücut (SİYAH YAPILDI)
+        boyfriend.add([circle(15), pos(0, -60), color(255, 224, 189), anchor("center")]); // Kafa
+        boyfriend.add([circle(16), pos(0, -64), color(50, 50, 50), anchor("center")]); // Saç
+        boyfriend.add([circle(15), pos(0, -60), color(255, 224, 189), anchor("center")]); // Maske
+        
+        // --- GÖRÜNMEZ DUVAR (ARKASINA GEÇİLMESİN DİYE) ---
+        add([
+            rect(10, height()), // Ekran kadar uzun
+            pos(boyX + 10, 0), // Erkeğin biraz arkasında
+            area(),
+            body({ isStatic: true }),
+            opacity(0), // Görünmez
+            "wall"
+        ]);
+
+
+        // --- OYNANIŞ ---
+        let isMovingRight = false;
+        let isGameFinished = false;
+
+        player.onUpdate(() => {
+            if(!isGameFinished) {
+                const currCam = camPos();
+                const targetX = player.pos.x + 150;
+                camPos(lerp(currCam.x, targetX, 0.08), height() / 2);
             }
-            // Tavan kontrolü
-            if (this.y < 0) {
-                this.y = 0;
-                this.dy = 0;
-            }
-        }
-    };
-
-    // Engeller
-    const obstacles = [];
-    const obstacleWidth = 50;
-    let frameCount = 0;
-    let obstacleSpeed = 5;
-
-    class Obstacle {
-        constructor() {
-            this.x = canvas.width;
-            // Rastgele yükseklikte engel (Alttan çıkan)
-            this.height = Math.random() * (canvas.height / 2) + 50; 
-            this.y = canvas.height - this.height;
-            this.passed = false;
-        }
-        draw() {
-            ctx.fillStyle = '#ff4444';
-            ctx.fillRect(this.x, this.y, obstacleWidth, this.height);
-        }
-        update() {
-            this.x -= obstacleSpeed;
-        }
-    }
-
-    // Oyun Döngüsü
-    function gameLoop() {
-        if (!gameRunning) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Oyuncu işlemleri
-        player.update();
-        player.draw();
-
-        // Engel işlemleri
-        if (frameCount % 100 === 0) { // Her 100 karede bir yeni engel
-            obstacles.push(new Obstacle());
-        }
-
-        for (let i = 0; i < obstacles.length; i++) {
-            obstacles[i].update();
-            obstacles[i].draw();
-
-            // Çarpışma Kontrolü (Basit AABB çarpışması)
-            if (
-                player.x < obstacles[i].x + obstacleWidth &&
-                player.x + player.width > obstacles[i].x &&
-                player.y < obstacles[i].y + obstacles[i].height &&
-                player.y + player.height > obstacles[i].y
-            ) {
-                gameOver();
+            
+            if (isMovingRight && !isGameFinished) {
+                player.move(350, 0);
             }
 
-            // Skor artırma
-            if (obstacles[i].x + obstacleWidth < player.x && !obstacles[i].passed) {
-                score++;
-                scoreElement.innerText = "Skor: " + score;
-                obstacles[i].passed = true;
-                // Oyun hızlandırma
-                if(score % 5 === 0) obstacleSpeed += 0.5;
+            if (player.pos.y > height() + 100) {
+                shake(20);
+                wait(0.5, () => go("game"));
+            }
+        });
+
+        player.onCollide("obstacle", () => {
+            shake(10); 
+            addKaboom(player.pos); 
+            wait(0.5, () => go("game")); 
+        });
+
+        function jump() {
+            if (player.isGrounded() && !isGameFinished) {
+                player.jump(900);
+                add([
+                    circle(10),
+                    pos(player.pos.x, player.pos.y),
+                    color(255,255,255),
+                    opacity(0.5),
+                    scale(1),
+                    lifespan(0.5),
+                    anchor("center")
+                ]);
             }
         }
 
-        // Ekrandan çıkan engelleri temizle
-        if (obstacles.length > 0 && obstacles[0].x < -obstacleWidth) {
-            obstacles.shift();
-        }
+        onTouchStart((id, pos) => {
+            if(isGameFinished) return;
+            if (pos.x > width() / 2) isMovingRight = true;
+            else jump();
+        });
 
-        frameCount++;
-        requestAnimationFrame(gameLoop);
-    }
+        onTouchEnd((id, pos) => {
+            if (pos.x > width() / 2) isMovingRight = false;
+        });
 
-    // Oyunu Başlatma/Zıplama
-    function jump() {
-        if (!gameRunning) {
-            resetGame();
-            gameRunning = true;
-            startText.style.display = 'none';
-            gameLoop();
-        }
-        player.dy = player.jumpStrength;
-    }
+        onKeyDown("right", () => isMovingRight = true);
+        onKeyRelease("right", () => isMovingRight = false);
+        onKeyPress("space", jump);
+        onKeyPress("left", jump);
 
-    function resetGame() {
-        player.y = canvas.height / 2;
-        player.dy = 0;
-        obstacles.length = 0;
-        score = 0;
-        scoreElement.innerText = "Skor: 0";
-        frameCount = 0;
-        obstacleSpeed = 5;
-    }
+        // --- FİNAL SENARYOSU ---
+        player.onCollide("boyfriend", () => {
+            isGameFinished = true;
+            isMovingRight = false;
+            
+            camPos(boyfriend.pos.x, height()/2);
 
-    function gameOver() {
-        gameRunning = false;
-        startText.innerText = "Oyun Bitti! Tekrar oynamak için dokun.";
-        startText.style.display = 'block';
-    }
+            // Soru metni
+            const questionText = add([
+                text("Beni affeder misin?", { size: 28, width: 400, align: "center", font: "Arial" }),
+                pos(boyfriend.pos.x, boyfriend.pos.y - 200),
+                color(0, 0, 0),
+                anchor("center")
+            ]);
 
-    // iPhone için Dokunma Algılama (Touch Event)
-    window.addEventListener('touchstart', function(e) {
-        e.preventDefault(); // Varsayılan dokunma davranışını engeller
-        jump();
-    }, { passive: false });
+            // EVET Butonu
+            const btnYes = add([
+                rect(120, 50, { radius: 10 }),
+                pos(boyfriend.pos.x - 70, boyfriend.pos.y - 120),
+                color(50, 205, 50),
+                area(),
+                anchor("center"),
+                "btnYes"
+            ]);
+            add([
+                text("EVET", { size: 24, font: "Arial" }),
+                pos(boyfriend.pos.x - 70, boyfriend.pos.y - 120),
+                color(255, 255, 255),
+                anchor("center")
+            ]);
 
-    // Bilgisayar için Mouse Tıklama (Test amaçlı)
-    window.addEventListener('mousedown', jump);
+            // HAYIR Butonu
+            const btnNo = add([
+                rect(120, 50, { radius: 10 }),
+                pos(boyfriend.pos.x + 70, boyfriend.pos.y - 120),
+                color(220, 20, 60),
+                area(),
+                anchor("center"),
+                "btnNo"
+            ]);
+            const txtNo = add([
+                text("HAYIR", { size: 24, font: "Arial" }),
+                pos(boyfriend.pos.x + 70, boyfriend.pos.y - 120),
+                color(255, 255, 255),
+                anchor("center")
+            ]);
+
+            // BUTON ETKİLEŞİMLERİ
+            onClick("btnYes", () => {
+                destroy(btnYes); destroy(btnNo); destroy(txtNo);
+                destroy(questionText);
+                
+                // HTML içindeki fotoğrafı görünür yap
+                document.getElementById('final-photo-container').style.display = 'block';
+
+                // Kalp Yağmuru
+                loop(0.1, () => {
+                    add([
+                        pos(boyfriend.pos.x, boyfriend.pos.y - 100),
+                        move(rand(0, 360), rand(100, 300)),
+                        lifespan(3),
+                        opacity(1),
+                        {
+                            draw() {
+                                const c = rgb(255, 0, 0);
+                                drawRect({ width: 20, height: 20, color: c, angle: 45, anchor: "center" });
+                                drawCircle({ pos: vec2(-7, -7), radius: 10, color: c });
+                                drawCircle({ pos: vec2(7, -7), radius: 10, color: c });
+                            }
+                        }
+                    ]);
+                });
+
+                // Final Yazısı
+                add([
+                    text("SENI SEVIYORUMM", { size: 32, width: 500, align: "center", font: "Arial" }),
+                    pos(boyfriend.pos.x, boyfriend.pos.y - 280 + 100), // Biraz daha aşağıda
+                    color(255, 0, 0), // Kırmızı
+                    anchor("center")
+                ]);
+            });
+
+            onClick("btnNo", () => {
+                const randomX = rand(boyfriend.pos.x - 300, boyfriend.pos.x + 300);
+                const randomY = rand(100, height() - 100);
+                btnNo.pos = vec2(randomX, randomY);
+                txtNo.pos = vec2(randomX, randomY);
+                shake(5);
+            });
+        });
+    });
+
+    go("game");
 
 </script>
 </body>
